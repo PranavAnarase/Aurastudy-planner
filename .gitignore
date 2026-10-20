@@ -1,0 +1,54 @@
+# ==============================================================================
+# AuraStudy Strict Production .gitignore
+# Ensures 100% privacy for credentials, environments, builds, and logs
+# ==============================================================================
+
+# Python Cache, Bytecode & Diagnostics
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Python Virtual Environments
+backend/venv/
+venv/
+.venv/
+env/
+ENV/
+
+# Node.js Dependencies & Frontend Builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+.npm/
+
+# Environment Variables & Sensitive Credentials (STRICT)
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+
+# Local Test Reports, Dumps & Scratch Outputs
+database_parameter_test_report.json
+db_check_results.txt
+*_report.json
+*_results.txt
+*.log
+
+# Scratch Verification & Migration Scripts (Internal only)
+check_*.py
+verify_*.py
+migration_plan_and_script.py
+powershell.cmd
+
+# Operating System & IDE Configs
+.git_old_backup/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
