@@ -18,7 +18,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = getattr(settings, "groq_model", None) or os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
 
 ENHANCED_GRADE7_SYSTEM_PROMPT = """
 You are an expert, encouraging Standard 7 school tutor. 
