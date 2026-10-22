@@ -231,7 +231,8 @@ async def generate_daily_plan(
                     concept_completed=stage_info.get("concept_completed", False),
                     practice_completed=stage_info.get("practice_completed", False),
                     recall_completed=stage_info.get("recall_completed", False),
-                    assessment_unlocked=stage_info.get("assessment_unlocked", False)
+                    assessment_unlocked=stage_info.get("assessment_unlocked", False),
+                    mastery_score=stage_info.get("mastery_score")
                 )
             )
         tasks = assign_time_slots(tasks, student)
@@ -312,7 +313,8 @@ async def generate_daily_plan(
                 concept_completed=stage_info.get("concept_completed", False),
                 practice_completed=stage_info.get("practice_completed", False),
                 recall_completed=stage_info.get("recall_completed", False),
-                assessment_unlocked=stage_info.get("assessment_unlocked", False)
+                assessment_unlocked=stage_info.get("assessment_unlocked", False),
+                mastery_score=stage_info.get("mastery_score")
             )
         )
 

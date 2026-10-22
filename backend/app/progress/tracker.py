@@ -165,8 +165,18 @@ class ProgressTracker:
 
             if mastery_rec:
                 mastery_score = float(mastery_rec.mastery_score)
+                is_mastered = (
+                    mastery_score >= 50.0
+                    or getattr(mastery_rec, 'current_stage', None) == 'COMPLETED'
+                    or (hasattr(mastery_rec, 'current_stage') and getattr(mastery_rec.current_stage, 'value', None) == 'COMPLETED')
+                )
                 next_review = mastery_rec.next_review_date or today
                 days_overdue = max(0, (today - next_review).days)
+
+                # If chapter is already mastered and not yet due for spaced review,
+                # omit it from the active study queue so newly unlocked chapters advance
+                if is_mastered and today < next_review:
+                    continue
             else:
                 next_review = today
                 mastery_score = 0.0

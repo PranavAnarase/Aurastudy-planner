@@ -453,7 +453,41 @@ export default function ChapterLearningHubModal({
           {/* TAB 4: CHAPTER ASSESSMENT */}
           {activeTab === 'assess' && (
             <div className="space-y-6 animate-in fade-in text-center py-6">
-              {isAssessUnlocked ? (
+              {pipeline_state?.current_stage === 'COMPLETED' ? (
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-sm">
+                    <CheckCircle2 size={36} />
+                  </div>
+                  <h3 className="text-2xl font-bold font-outfit text-slate-900 dark:text-slate-100">
+                    Chapter Assessment Mastered! 🎉
+                  </h3>
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold">
+                    <Award size={14} className="text-emerald-500" />
+                    <span>Mastery Score: {Math.round(pipeline_state?.mastery_score || 90)}%</span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    You have cleared this chapter's Standard 7 Assessment. Chapter {pipelineData.chapter_number + 1} has been unlocked in your roadmap, and retention review is scheduled automatically.
+                  </p>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                    <button
+                      onClick={onClose}
+                      className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition"
+                    >
+                      Close & View Study Schedule
+                    </button>
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onStartAssessment(chapterId, chapterName, subjectName);
+                      }}
+                      className="w-full sm:w-auto px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition whitespace-nowrap"
+                    >
+                      Retake Assessment
+                    </button>
+                  </div>
+                </div>
+              ) : isAssessUnlocked ? (
                 <div className="max-w-md mx-auto space-y-4">
                   <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto shadow-sm">
                     <Award size={32} />

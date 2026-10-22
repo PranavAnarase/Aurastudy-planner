@@ -895,6 +895,17 @@ async def submit_chapter_assessment(
         "aid": assessment_id
     })
 
+    # Auto-complete daily plan task for this chapter if assessment was passed (>= 50%)
+    if chapter_id and updated_mastery >= 50.0:
+        await db.execute(sa_text("""
+            UPDATE xxed_daily_plan_tasks_tab
+            SET status = 'COMPLETED',
+                completed_at = NOW()
+            WHERE student_id = :sid 
+              AND chapter_id = :cid 
+              AND (plan_date = CURRENT_DATE OR status = 'PENDING')
+        """), {"sid": req.student_id, "cid": chapter_id})
+
     await db.commit()
 
     # 5. Step 3, 4, 5: Dynamic Timetable Rebalancing (Weekly Budget = daily_study_hours * 7)

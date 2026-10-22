@@ -30,6 +30,7 @@ class TaskModel(BaseModel):
     practice_completed: Optional[bool] = False
     recall_completed: Optional[bool] = False
     assessment_unlocked: Optional[bool] = False
+    mastery_score: Optional[float] = None
 
 
 class DailyPlanResponse(BaseModel):

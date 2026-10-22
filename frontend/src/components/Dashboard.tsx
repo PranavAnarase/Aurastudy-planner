@@ -41,6 +41,7 @@ interface Task {
   practice_completed?: boolean;
   recall_completed?: boolean;
   assessment_unlocked?: boolean;
+  mastery_score?: number;
 }
 
 interface DayPlan {
@@ -165,6 +166,7 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
   const [availableSubjects, setAvailableSubjects] = useState<any[]>([]);
   const [dueReviews, setDueReviews] = useState<any[]>([]);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('ALL');
+  const [assessmentFilter, setAssessmentFilter] = useState<'pending' | 'unlocked' | 'all'>('unlocked');
   const [showAllChapters, setShowAllChapters] = useState(false);
 
 
@@ -970,7 +972,7 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
 
             ) : (
               dailyTasks.map((task) => {
-                const isDone = task.status === 'COMPLETED';
+                const isDone = task.status === 'COMPLETED' || task.current_stage === 'COMPLETED';
                 const isInProgress = task.status === 'IN_PROGRESS';
                 const timeStatus = getTaskTimeStatus(task);
 
@@ -1044,22 +1046,37 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
                       >
                         <BookOpen size={14} className="text-indigo-500" /> Study & Practice
                       </button>
-                      <button
-                        onClick={() => setActiveAssessmentChapter({
-                          chapterId: task.chapter_id,
-                          chapterName: task.chapter_name,
-                          subjectName: task.subject_name
-                        })}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm ${
-                          task.assessment_unlocked || task.current_stage === 'READY_FOR_ASSESSMENT' || task.current_stage === 'COMPLETED'
-                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
-                        }`}
-                        title={task.assessment_unlocked ? 'Take Chapter Internal Assessment' : 'Complete Concept, Practice, and Recall to unlock'}
-                      >
-                        {task.assessment_unlocked || task.current_stage === 'READY_FOR_ASSESSMENT' || task.current_stage === 'COMPLETED' ? <Award size={14} /> : <Lock size={14} />}
-                        Assess Chapter
-                      </button>
+                      {task.current_stage === 'COMPLETED' ? (
+                        <button
+                          onClick={() => setActiveAssessmentChapter({
+                            chapterId: task.chapter_id,
+                            chapterName: task.chapter_name,
+                            subjectName: task.subject_name
+                          })}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-600/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition shadow-xs"
+                          title="Assessment Mastered (Click to review or retake)"
+                        >
+                          <CheckCircle2 size={14} className="text-emerald-500" />
+                          <span>Assessed ({task.mastery_score ? `${Math.round(task.mastery_score)}%` : '✓'})</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setActiveAssessmentChapter({
+                            chapterId: task.chapter_id,
+                            chapterName: task.chapter_name,
+                            subjectName: task.subject_name
+                          })}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm ${
+                            task.assessment_unlocked || task.current_stage === 'READY_FOR_ASSESSMENT'
+                              ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                          }`}
+                          title={task.assessment_unlocked ? 'Take Chapter Internal Assessment' : 'Complete Concept, Practice, and Recall to unlock'}
+                        >
+                          {task.assessment_unlocked || task.current_stage === 'READY_FOR_ASSESSMENT' ? <Award size={14} /> : <Lock size={14} />}
+                          Assess Chapter
+                        </button>
+                      )}
 
                       <button
                         onClick={() => openCompletionForm(task)}
@@ -1184,17 +1201,34 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
             </div>
             <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-300/80 dark:border-slate-800 shrink-0 self-start sm:self-auto">
               <button
-                onClick={() => setShowAllChapters(false)}
+                onClick={() => {
+                  setAssessmentFilter('pending');
+                  setShowAllChapters(false);
+                }}
                 className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition ${
-                  !showAllChapters ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  assessmentFilter === 'pending' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                Active Unlocked
+                Needs Assessment
               </button>
               <button
-                onClick={() => setShowAllChapters(true)}
+                onClick={() => {
+                  setAssessmentFilter('unlocked');
+                  setShowAllChapters(false);
+                }}
                 className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition ${
-                  showAllChapters ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  assessmentFilter === 'unlocked' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                All Unlocked
+              </button>
+              <button
+                onClick={() => {
+                  setAssessmentFilter('all');
+                  setShowAllChapters(true);
+                }}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition ${
+                  assessmentFilter === 'all' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 Full Roadmap
@@ -1286,7 +1320,11 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
             {availableSubjects
               .filter(s => selectedSubjectFilter === 'ALL' || s.subject_name === selectedSubjectFilter)
               .map((subj) => {
-                const displayChapters = subj.chapters.filter((ch: any) => showAllChapters || ch.is_unlocked !== false);
+                const displayChapters = subj.chapters.filter((ch: any) => {
+                  if (assessmentFilter === 'all' || showAllChapters) return true;
+                  if (assessmentFilter === 'pending') return ch.is_unlocked !== false && (ch.mastery_score || 0) < 50;
+                  return ch.is_unlocked !== false;
+                });
 
                 return (
                   <div key={subj.subject_name} className="bg-white/80 dark:bg-slate-900/60 glass-dark rounded-2xl p-5 border border-slate-200 dark:border-slate-800/60 shadow-sm dark:shadow-none space-y-4">
@@ -1409,6 +1447,17 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
                                   className="w-full mt-1 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700/50 cursor-not-allowed flex items-center justify-center gap-1.5"
                                 >
                                   <Lock size={12} /> Locked
+                                </button>
+                              ) : mastery >= 50 ? (
+                                <button
+                                  onClick={() => setActiveAssessmentChapter({
+                                    chapterId: ch.chapter_id,
+                                    chapterName: ch.chapter_name,
+                                    subjectName: subj.subject_name
+                                  })}
+                                  className="w-full mt-1 py-2 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center justify-center gap-1.5 transition shadow-xs"
+                                >
+                                  <CheckCircle2 size={13} className="text-emerald-500" /> Retake Assessment
                                 </button>
                               ) : (
                                 <button
