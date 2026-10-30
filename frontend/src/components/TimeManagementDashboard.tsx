@@ -33,6 +33,8 @@ import {
 
 import {
   rankTopicsByUrgency,
+  assembleTestPayload,
+  buildCandidateTopics,
 } from '../engine/adaptiveTopicSelector';
 
 import {
@@ -46,6 +48,7 @@ import {
   getCompletedDynamicSlots,
   fetchCompletedDynamicSlots,
   markDynamicSlotCompleted,
+  formatLocalDate,
 } from '../utils/completedTests';
 
 import type {
@@ -205,7 +208,7 @@ const DAY_OF_WEEK_MAP: DayOfWeek[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 
 
 function filterBlocksForDate(blocks: UnavailabilityBlock[], targetDate: Date): UnavailabilityBlock[] {
   const dayCode = DAY_OF_WEEK_MAP[targetDate.getDay()];
-  const targetIso = targetDate.toISOString().split('T')[0];
+  const targetIso = formatLocalDate(targetDate);
 
   return blocks.filter((b) => {
     const recType = b.recurrenceType || 'WEEKLY_RECURRING';
@@ -218,40 +221,6 @@ function filterBlocksForDate(blocks: UnavailabilityBlock[], targetDate: Date): U
     }
     return b.daysOfWeek.includes(dayCode);
   });
-}
-
-function buildCandidateTopics(
-  subjects: SubjectInfo[],
-  tasks: DailyPlanTask[]
-): CandidateTopic[] {
-  const completedTaskChapterIds = new Set(
-    tasks.filter((t) => t.status === 'COMPLETED').map((t) => t.chapter_id)
-  );
-
-  const candidates: CandidateTopic[] = [];
-
-  for (const subj of subjects) {
-    for (const ch of subj.chapters) {
-      if (ch.is_locked === true) continue;
-      const isStudiedYesterday = completedTaskChapterIds.has(ch.chapter_id);
-      const isCompletedOrInProgress = ch.mastery_score > 0 || isStudiedYesterday || Boolean(ch.is_due);
-
-      candidates.push({
-        chapterId: ch.chapter_id,
-        chapterName: ch.chapter_name,
-        subjectName: subj.subject_name,
-        masteryScore: ch.mastery_score ?? 0,
-        lastReviewedDate: ch.next_review_date ?? undefined,
-        daysSinceReview: ch.interval_days ?? 1,
-        stabilityFactor: 2.0,
-        wasStudiedYesterday: isStudiedYesterday,
-        isUnlocked: ch.is_unlocked !== false,
-        isCompletedOrInProgress,
-      });
-    }
-  }
-
-  return candidates;
 }
 
 function buildSlotsFromTasks(
@@ -356,7 +325,7 @@ function buildSlotsFromTasks(
           !emittedCommitmentIds.has(c.id)
         ) {
           if (c.startMins > cursor && c.startMins - cursor >= 10) {
-            finalSlots.push(makeFreeSlot(`pregap-${bi}`, cursor, c.startMins));
+            finalSlots.push(makeFreeSlot(`pregap-${c.id}-${bi}`, cursor, c.startMins));
           }
           finalSlots.push(makeUnavailSlot(c));
           emittedCommitmentIds.add(c.id);
@@ -413,7 +382,7 @@ function buildSlotsFromTasks(
   for (const c of mergedCommitments) {
     if (!emittedCommitmentIds.has(c.id)) {
       if (c.startMins > cursor && c.startMins - cursor >= 10) {
-        finalSlots.push(makeFreeSlot(`postend`, cursor, c.startMins));
+        finalSlots.push(makeFreeSlot(`postend-${c.id}`, cursor, c.startMins));
       }
       finalSlots.push(makeUnavailSlot(c));
       emittedCommitmentIds.add(c.id);
@@ -425,51 +394,57 @@ function buildSlotsFromTasks(
   const candidateTopics = buildCandidateTopics(subjects, tasks);
   const rankedTopics = rankTopicsByUrgency(candidateTopics);
 
-  const plannedStudyIntervals = rawBlocks.map((b) => ({
-    startMinutes: b.originalStartMins,
-    endMinutes: b.originalEndMins,
-    label: b.chapterName,
-  }));
-
-  const commitmentIntervals = mergedCommitments.map((c) => ({
-    startMinutes: c.startMins,
-    endMinutes: c.endMins,
-    label: c.label,
-  }));
-
-  const dynamicSlots = generateAdaptiveTestSlots(commitmentIntervals, plannedStudyIntervals);
-
-  for (const dyn of dynamicSlots) {
-    if (completedSlotIds.includes(dyn.id)) {
-      continue; // Never show completed dynamic recall tests again
-    }
-
-    const targetTopics = rankedTopics.slice(0, 3).map((t) => ({
-      chapterId: t.chapterId,
-      chapterName: t.chapterName,
-      subjectName: t.subjectName,
-      masteryScore: t.masteryScore,
+  if (rankedTopics.length > 0) {
+    const plannedStudyIntervals = rawBlocks.map((b) => ({
+      startMinutes: b.originalStartMins,
+      endMinutes: b.originalEndMins,
+      label: b.chapterName,
     }));
 
-    finalSlots.push({
-      id: dyn.id,
-      kind: 'dynamic_test',
-      activityType: dyn.activityType,
-      title: dyn.title,
-      subtitle: dyn.subtitle,
-      startTime: dyn.displayStartTime,
-      endTime: dyn.displayEndTime,
-      startMinutes: dyn.startMinutes,
-      endMinutes: dyn.endMinutes,
-      durationMinutes: dyn.durationMinutes,
-      questionCount: dyn.recommendedQuestionCount,
-      badgeLabel: dyn.activityType === 'FIRST_GAP_RETENTION_TEST'
-        ? 'Post-Sleep Test'
-        : dyn.activityType === 'MICRO_DRILL'
-        ? 'Micro-Drill'
-        : 'Spaced Quiz',
-      targetTopics,
-    });
+    const commitmentIntervals = mergedCommitments.map((c) => ({
+      startMinutes: c.startMins,
+      endMinutes: c.endMins,
+      label: c.label,
+    }));
+
+    const dynamicSlots = generateAdaptiveTestSlots(commitmentIntervals, plannedStudyIntervals);
+
+    for (const dyn of dynamicSlots) {
+      if (completedSlotIds.includes(dyn.id)) {
+        continue; // Never show completed dynamic recall tests again
+      }
+
+      const payload = assembleTestPayload(dyn, candidateTopics);
+      const targetTopics = payload.topics.map((t) => {
+        const match = rankedTopics.find((r) => r.chapterId === t.chapterId);
+        return {
+          chapterId: t.chapterId,
+          chapterName: match?.chapterName || t.chapterName,
+          subjectName: match?.subjectName || '',
+          masteryScore: match?.masteryScore ?? 0,
+        };
+      });
+
+      finalSlots.push({
+        id: dyn.id,
+        kind: 'dynamic_test',
+        activityType: dyn.activityType,
+        title: dyn.title,
+        subtitle: dyn.subtitle,
+        startTime: dyn.displayStartTime,
+        endTime: dyn.displayEndTime,
+        startMinutes: dyn.startMinutes,
+        endMinutes: dyn.endMinutes,
+        durationMinutes: dyn.durationMinutes,
+        questionCount: dyn.recommendedQuestionCount,
+        badgeLabel: dyn.activityType === 'FIRST_GAP_RETENTION_TEST'
+          ? 'Post-Sleep Test'
+          : dyn.activityType === 'MICRO_DRILL'
+          ? 'Micro-Drill'
+          : 'Spaced Quiz',
+        targetTopics,
+      });
+    }
   }
 
   // ── 6. Sort final slots chronologically ───────────────────────────────
@@ -654,7 +629,7 @@ export default function TimeManagementDashboard({
     setError(null);
 
     try {
-      const todayStr = selectedDate.toISOString().split('T')[0];
+      const todayStr = formatLocalDate(selectedDate);
 
       const [dailyRes, chaptersRes] = await Promise.all([
         fetch(`${AURASTUDY_V1_PREFIX}/planner/daily`, {
@@ -705,12 +680,12 @@ export default function TimeManagementDashboard({
 
   const [activeTestSlot, setActiveTestSlot] = useState<DynamicTestSlot | null>(null);
   const [completedSlotIds, setCompletedSlotIds] = useState<string[]>(() =>
-    getCompletedDynamicSlots(studentId, selectedDate.toISOString().split('T')[0])
+    getCompletedDynamicSlots(studentId, formatLocalDate(selectedDate))
   );
 
   // Sync completedSlotIds from localStorage and backend database whenever studentId or date changes
   useEffect(() => {
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(selectedDate);
     setCompletedSlotIds(getCompletedDynamicSlots(studentId, dateStr));
     fetchCompletedDynamicSlots(studentId, dateStr).then((slots) => {
       setCompletedSlotIds(slots);
@@ -731,7 +706,7 @@ export default function TimeManagementDashboard({
   );
 
   const summary = React.useMemo((): DashboardSummary => {
-    const base = buildSummary(selectedDate, tasks, capacityMinutes, activeSubjects);
+    const base = buildSummary(selectedDate, tasks, capacityMinutes, subjects);
 
     // Enrich focus chapter with tier + reason
     if (base.todayFocusChapter) {
@@ -750,7 +725,7 @@ export default function TimeManagementDashboard({
       }
     }
     return base;
-  }, [selectedDate, tasks, capacityMinutes, activeSubjects, chapterMap]);
+  }, [selectedDate, tasks, capacityMinutes, subjects, chapterMap]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 

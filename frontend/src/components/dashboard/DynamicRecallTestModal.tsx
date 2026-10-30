@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { DynamicTestSlot } from '../../types/dashboard';
 import type { QuestionBankItem, DynamicRecallQuestionsResponse } from '../../types/scheduler';
-import { markDynamicSlotCompleted } from '../../utils/completedTests';
+import { markDynamicSlotCompleted, formatLocalDate } from '../../utils/completedTests';
 import { AURASTUDY_V1_PREFIX } from '../../config/api';
 
 
@@ -45,9 +45,10 @@ export default function DynamicRecallTestModal({
     setIsCompleted(false);
 
     try {
-      const chapterIds = slot.targetTopics && slot.targetTopics.length > 0
-        ? slot.targetTopics.map((t) => t.chapterId)
-        : [1]; // fallback
+      if (!slot.targetTopics || slot.targetTopics.length === 0) {
+        throw new Error('No target topics specified for this recall session.');
+      }
+      const chapterIds = slot.targetTopics.map((t) => t.chapterId);
 
       const res = await fetch(`${AURASTUDY_V1_PREFIX}/assessment/dynamic-recall-questions`, {
         method: 'POST',
@@ -109,7 +110,7 @@ export default function DynamicRecallTestModal({
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
     const timeTaken = Math.max(0, (slot.durationMinutes || 20) * 60 - secondsRemaining);
 
-    markDynamicSlotCompleted(studentId, slot.id, undefined, {
+    markDynamicSlotCompleted(studentId, slot.id, formatLocalDate(), {
       activityType: slot.activityType,
       accuracy,
       obtainedMarks: correct,
@@ -124,16 +125,18 @@ export default function DynamicRecallTestModal({
   useEffect(() => {
     if (!isOpen || isCompleted || loading || error || secondsRemaining <= 0) return;
     const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          triggerCompletion();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setSecondsRemaining((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [isOpen, isCompleted, loading, error, secondsRemaining, triggerCompletion]);
+  }, [isOpen, isCompleted, loading, error, secondsRemaining]);
+
+  // Invoke triggerCompletion when countdown reaches zero
+  useEffect(() => {
+    if (!isOpen || isCompleted || loading || error || questions.length === 0) return;
+    if (secondsRemaining === 0) {
+      triggerCompletion();
+    }
+  }, [secondsRemaining, isOpen, isCompleted, loading, error, questions.length, triggerCompletion]);
 
   const handleSelectOption = (index: number) => {
     if (selectedAnswers[currentIndex] !== undefined) return;

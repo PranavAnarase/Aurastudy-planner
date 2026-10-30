@@ -213,9 +213,14 @@ export default function ChapterAssessmentModal({
 
     // Record last question time
     const qId = questions[currentIdx]?.question_id;
+    let updatedTimeSpent = { ...timeSpent };
     if (qId) {
       const elapsed = Math.round((Date.now() - questionStartTimeRef.current) / 1000);
-      setTimeSpent(prev => ({ ...prev, [qId]: (prev[qId] || 0) + elapsed }));
+      updatedTimeSpent = {
+        ...updatedTimeSpent,
+        [qId]: (updatedTimeSpent[qId] || 0) + elapsed
+      };
+      setTimeSpent(updatedTimeSpent);
     }
 
     setSubmitting(true);
@@ -225,7 +230,7 @@ export default function ChapterAssessmentModal({
       const responsesPayload = questions.map(q => ({
         question_id: q.question_id,
         selected_option: selectedAnswers[q.question_id] || null,
-        time_taken_seconds: timeSpent[q.question_id] || 0
+        time_taken_seconds: updatedTimeSpent[q.question_id] || 0
       }));
 
       const submitUrl = isSpacedReview

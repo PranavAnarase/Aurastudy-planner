@@ -37,6 +37,7 @@ export default function Diagnostic({ studentId, selectedSubjects = [], onComplet
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   // Map-based answer state: keyed by question_id
   const [answersMap, setAnswersMap] = useState<Record<number, AnswerRecord>>({});
@@ -132,6 +133,7 @@ export default function Diagnostic({ studentId, selectedSubjects = [], onComplet
     });
 
     setSubmitting(true);
+    setSubmitError('');
     stopTimer();
 
     try {
@@ -151,10 +153,11 @@ export default function Diagnostic({ studentId, selectedSubjects = [], onComplet
       const data = await response.json();
       onComplete(data.session_id, data);
     } catch (err: any) {
-      setError(err.message || 'Submission failed.');
+      setSubmitError(err.message || 'Submission failed.');
       setSubmitting(false);
+      startTimer();
     }
-  }, [questions, activeQuestions, currentIndex, selectedOption, seconds, answersMap, sessionIdStore, onComplete, stopTimer]);
+  }, [questions, activeQuestions, currentIndex, selectedOption, seconds, answersMap, sessionIdStore, onComplete, stopTimer, startTimer]);
 
   // Navigate to next question or section
   const handleNext = useCallback(() => {
@@ -614,6 +617,13 @@ export default function Diagnostic({ studentId, selectedSubjects = [], onComplet
             );
           })}
         </div>
+
+        {submitError && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{submitError}</span>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">

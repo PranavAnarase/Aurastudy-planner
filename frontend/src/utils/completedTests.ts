@@ -8,9 +8,16 @@
 import { AURASTUDY_V1_PREFIX } from '../config/api';
 
 
+export function formatLocalDate(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function getCompletedDynamicSlots(studentId: number, dateStr?: string): string[] {
   if (!studentId) return [];
-  const targetDate = dateStr || new Date().toISOString().split('T')[0];
+  const targetDate = dateStr || formatLocalDate();
   const key = `aura_completed_dynamic_slots_${studentId}_${targetDate}`;
   try {
     const raw = localStorage.getItem(key);
@@ -23,7 +30,7 @@ export function getCompletedDynamicSlots(studentId: number, dateStr?: string): s
 
 export async function fetchCompletedDynamicSlots(studentId: number, dateStr?: string): Promise<string[]> {
   if (!studentId) return [];
-  const targetDate = dateStr || new Date().toISOString().split('T')[0];
+  const targetDate = dateStr || formatLocalDate();
   const key = `aura_completed_dynamic_slots_${studentId}_${targetDate}`;
 
   try {
@@ -56,7 +63,7 @@ export async function markDynamicSlotCompleted(
   }
 ): Promise<void> {
   if (!studentId || !slotId) return;
-  const targetDate = dateStr || new Date().toISOString().split('T')[0];
+  const targetDate = dateStr || formatLocalDate();
   const key = `aura_completed_dynamic_slots_${studentId}_${targetDate}`;
 
   // 1. Immediately update localStorage for instant UI reactivity

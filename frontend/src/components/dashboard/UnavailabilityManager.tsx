@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Clock, X, Calendar, Repeat, Check, Edit2 } from 'lucide-react';
 import type { UnavailabilityBlock, CommitmentType, RecurrenceType, DayOfWeek } from '../../types/dashboard';
 import { AURASTUDY_V1_PREFIX } from '../../config/api';
+import { formatLocalDate } from '../../utils/completedTests';
 
 
 const COMMITMENT_TYPES: CommitmentType[] = [
@@ -80,7 +81,7 @@ const DAY_OF_WEEK_MAP: DayOfWeek[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 
 
 export function filterBlocksForDate(blocks: UnavailabilityBlock[], targetDate: Date): UnavailabilityBlock[] {
   const dayCode = DAY_OF_WEEK_MAP[targetDate.getDay()];
-  const targetIso = targetDate.toISOString().split('T')[0];
+  const targetIso = formatLocalDate(targetDate);
 
   return blocks.filter((b) => {
     const recType = b.recurrenceType || 'WEEKLY_RECURRING';
@@ -146,7 +147,7 @@ export async function loadUnavailabilityBlocks(studentId: number): Promise<Unava
 /**
  * Save commitments persistently to backend API and localStorage.
  */
-export async function saveUnavailabilityBlocks(studentId: number, blocks: UnavailabilityBlock[]): Promise<void> {
+export async function saveUnavailabilityBlocks(studentId: number, blocks: UnavailabilityBlock[]): Promise<boolean> {
   localStorage.setItem(STORAGE_KEY(studentId), JSON.stringify(blocks));
 
   try {
@@ -163,13 +164,15 @@ export async function saveUnavailabilityBlocks(studentId: number, blocks: Unavai
       })),
     };
 
-    await fetch(`${AURASTUDY_V1_PREFIX}/planner/commitments/${studentId}`, {
+    const res = await fetch(`${AURASTUDY_V1_PREFIX}/planner/commitments/${studentId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    return res.ok;
   } catch (err) {
     console.error('Failed to sync commitments to server:', err);
+    return false;
   }
 }
 
@@ -188,7 +191,7 @@ interface FormState {
   endTime12: Time12h;
 }
 
-const getTodayIso = () => new Date().toISOString().split('T')[0];
+const getTodayIso = () => formatLocalDate();
 
 const DEFAULT_FORM: FormState = {
   label: 'College',
@@ -306,7 +309,10 @@ export default function UnavailabilityManager({
 
   const openNewForm = () => {
     setEditingBlockId(null);
-    setForm(DEFAULT_FORM);
+    setForm({
+      ...DEFAULT_FORM,
+      specificDate: getTodayIso(),
+    });
     setFormError('');
     setFormOpen(true);
   };
@@ -418,8 +424,13 @@ export default function UnavailabilityManager({
     updated.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
     setIsSaving(true);
-    await saveUnavailabilityBlocks(studentId, updated);
+    const success = await saveUnavailabilityBlocks(studentId, updated);
     setIsSaving(false);
+
+    if (!success) {
+      setFormError('Failed to save commitment to server. Please try again.');
+      return;
+    }
 
     onChange(updated);
     closeForm();
@@ -427,12 +438,18 @@ export default function UnavailabilityManager({
 
   const handleRemove = async (id: string) => {
     const updated = blocks.filter((b) => b.id !== id);
+    setIsSaving(true);
+    const success = await saveUnavailabilityBlocks(studentId, updated);
+    setIsSaving(false);
+
+    if (!success) {
+      setFormError('Failed to remove commitment from server.');
+      return;
+    }
+
     if (editingBlockId === id) {
       closeForm();
     }
-    setIsSaving(true);
-    await saveUnavailabilityBlocks(studentId, updated);
-    setIsSaving(false);
     onChange(updated);
   };
 

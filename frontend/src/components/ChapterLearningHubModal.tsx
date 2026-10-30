@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle2, Lock, Unlock, Award, ArrowRight, Sparkles, Brain, RotateCcw, X, ListChecks } from 'lucide-react';
+import { BookOpen, CheckCircle2, Lock, Unlock, Award, ArrowRight, Sparkles, Brain, RotateCcw, X, ListChecks, AlertCircle, RefreshCw } from 'lucide-react';
 import { getSubjectPlaybook } from '../constants/studyPlaybooks';
 import { API_BASE_URL, AURASTUDY_V1_PREFIX } from '../config/api';
 
@@ -23,6 +23,7 @@ export default function ChapterLearningHubModal({
   onStageUpdated
 }: ChapterLearningHubModalProps) {
   const [pipelineData, setPipelineData] = useState<any>(null);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'concept' | 'practice' | 'recall' | 'assess'>('concept');
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -41,6 +42,7 @@ export default function ChapterLearningHubModal({
   const fetchPipeline = async () => {
     try {
       setLoading(true);
+      setPipelineError(null);
       const res = await fetch(`${AURASTUDY_V1_PREFIX}/assessment/chapter/pipeline?chapter_id=${encodeURIComponent(String(chapterId))}&user_id=${encodeURIComponent(String(studentId))}`);
       if (res.ok) {
         const data = await res.json();
@@ -50,9 +52,13 @@ export default function ChapterLearningHubModal({
         else if (stage === 'ACTIVE_RECALL') setActiveTab('recall');
         else if (stage === 'READY_FOR_ASSESSMENT' || stage === 'COMPLETED') setActiveTab('assess');
         else setActiveTab('concept');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setPipelineError(errData.detail || 'Unable to load chapter learning pipeline.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setPipelineError(err.message || 'Failed to connect to chapter learning service.');
     } finally {
       setLoading(false);
     }
@@ -91,12 +97,38 @@ export default function ChapterLearningHubModal({
     }
   };
 
-  if (loading || !pipelineData) {
+  if (loading) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
           <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Loading Chapter Learning Pipeline...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (pipelineError || !pipelineData) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
+          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Unable to Load Pipeline</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">{pipelineError || 'No learning pipeline data available.'}</p>
+          <div className="flex gap-3 justify-center pt-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              Close
+            </button>
+            <button
+              onClick={fetchPipeline}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition"
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -416,10 +448,12 @@ export default function ChapterLearningHubModal({
                 {content.flashcards?.map((card: any) => {
                   const isFlipped = flippedCards[card.id];
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={card.id}
+                      aria-pressed={!!isFlipped}
                       onClick={() => setFlippedCards(prev => ({ ...prev, [card.id]: !prev[card.id] }))}
-                      className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-800/80 dark:to-indigo-950/20 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 transition min-h-[140px] flex flex-col justify-between"
+                      className="text-left w-full p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-800/80 dark:to-indigo-950/20 border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition min-h-[140px] flex flex-col justify-between"
                     >
                       <div>
                         <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block mb-1">
@@ -432,7 +466,7 @@ export default function ChapterLearningHubModal({
                       <div className="flex justify-end pt-2">
                         <RotateCcw size={14} className="text-slate-400" />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

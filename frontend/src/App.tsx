@@ -148,9 +148,9 @@ export default function App() {
             const data = await response.json();
             setProfile(data);
             setEditForm(data);
-          } else {
+          } else if (response.status === 404) {
             // Student ID in sessionStorage is invalid/doesn't exist. Clear it and redirect to onboarding/login.
-            console.warn(`Student ID ${studentId} not found in database. Resetting workspace.`);
+            console.warn(`Student ID ${studentId} not found in database (404). Resetting workspace.`);
             setStudentId(null);
             setSessionId(null);
             setFlow('onboarding');
@@ -158,6 +158,8 @@ export default function App() {
             sessionStorage.removeItem('sessionId');
             sessionStorage.removeItem('diagnosticCompleted');
             sessionStorage.removeItem('entryPoint');
+          } else {
+            console.error(`Failed to load student profile details. Server returned status: ${response.status}`);
           }
         } catch (err) {
           console.error('Failed to load student profile details:', err);

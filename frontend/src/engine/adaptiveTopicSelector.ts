@@ -64,6 +64,70 @@ export function filterEligibleTopics(topics: CandidateTopic[]): CandidateTopic[]
 }
 
 /**
+ * Shared mapping helper to build candidate topics from subjects and yesterday's completed chapters.
+ */
+export function buildCandidateTopics(
+  subjects: Array<{ subject_name: string; chapters?: any[] }>,
+  yesterdayCompletedChapters?: Set<number> | number[] | Array<{ chapter_id?: number; chapterId?: number; status?: string }>
+): CandidateTopic[] {
+  const yesterdayChapterIds = new Set<number>();
+  if (yesterdayCompletedChapters) {
+    if (yesterdayCompletedChapters instanceof Set) {
+      yesterdayCompletedChapters.forEach((id) => yesterdayChapterIds.add(id));
+    } else if (Array.isArray(yesterdayCompletedChapters)) {
+      for (const item of yesterdayCompletedChapters) {
+        if (typeof item === 'number') {
+          yesterdayChapterIds.add(item);
+        } else if (item && typeof item === 'object') {
+          const cid = (item as any).chapter_id ?? (item as any).chapterId;
+          if (cid && (!item.status || item.status === 'COMPLETED')) {
+            yesterdayChapterIds.add(cid);
+          }
+        }
+      }
+    }
+  }
+
+  const candidates: CandidateTopic[] = [];
+
+  for (const subj of subjects) {
+    for (const ch of subj.chapters || []) {
+      if (ch.is_locked === true) continue;
+      const wasStudiedYesterday = yesterdayChapterIds.has(ch.chapter_id);
+      const isCompletedOrInProgress = (ch.mastery_score || 0) > 0 || wasStudiedYesterday || Boolean(ch.is_due);
+
+      const actualLastReviewDate = ch.last_reviewed_date || ch.last_review_date || ch.lastReviewedDate;
+
+      let daysSinceReview = ch.interval_days ?? 1;
+      if (actualLastReviewDate) {
+        const lastDate = new Date(actualLastReviewDate);
+        if (!isNaN(lastDate.getTime())) {
+          const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          daysSinceReview = Math.max(0, diffDays);
+        }
+      } else if (ch.days_until_next_review !== undefined && ch.interval_days !== undefined) {
+        daysSinceReview = Math.max(0, ch.interval_days - ch.days_until_next_review);
+      }
+
+      candidates.push({
+        chapterId: ch.chapter_id,
+        chapterName: ch.chapter_name,
+        subjectName: subj.subject_name,
+        masteryScore: ch.mastery_score ?? 0,
+        lastReviewedDate: actualLastReviewDate ? String(actualLastReviewDate) : undefined,
+        daysSinceReview,
+        stabilityFactor: 2.0,
+        wasStudiedYesterday,
+        isUnlocked: ch.is_unlocked !== false,
+        isCompletedOrInProgress,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+/**
  * Rank candidate topics by cognitive urgency score descending
  */
 export function rankTopicsByUrgency(

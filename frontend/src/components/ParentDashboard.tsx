@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL, AURASTUDY_V1_PREFIX } from '../config/api';
 import {
   GraduationCap,
@@ -53,8 +53,10 @@ export default function ParentDashboard({
   const [discussedItems, setDiscussedItems] = useState<Record<string, boolean>>({});
   const [highFiveSent, setHighFiveSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'subjects' | 'schedule'>('overview');
+  const dashboardReqIdRef = useRef(0);
 
   const fetchDashboardData = async (isSilent = false) => {
+    const currentReq = ++dashboardReqIdRef.current;
     if (!isSilent) {
       if (!data) setLoading(true);
       else setRefreshing(true);
@@ -71,18 +73,23 @@ export default function ParentDashboard({
         throw new Error(errData.detail || 'Unable to fetch child progress data.');
       }
       const json: ParentDashboardResponse = await res.json();
-      setData(json);
+      if (currentReq === dashboardReqIdRef.current) {
+        setData(json);
+      }
     } catch (err: any) {
-      if (!isSilent) {
+      if (!isSilent && currentReq === dashboardReqIdRef.current) {
         setError(err.message || 'Failed to connect to parent portal service.');
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (currentReq === dashboardReqIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
+    dashboardReqIdRef.current++;
     fetchDashboardData();
 
     // 1. Periodic background polling (every 5 seconds) to catch live updates
@@ -103,14 +110,18 @@ export default function ParentDashboard({
       fetchDashboardData(true);
     };
     window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', () => {
+
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') fetchDashboardData(true);
-    });
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      dashboardReqIdRef.current++;
     };
   }, [parentUser]);
 
@@ -119,10 +130,9 @@ export default function ParentDashboard({
   };
 
   const handleSendHighFive = async () => {
-    setHighFiveSent(true);
     try {
       // 1. Post to backend
-      await fetch(`${AURASTUDY_V1_PREFIX}/parent/send-high-five`, {
+      const res = await fetch(`${AURASTUDY_V1_PREFIX}/parent/send-high-five`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,6 +141,12 @@ export default function ParentDashboard({
           message: 'Proud of your hard work and study consistency today! Keep shining! 👏',
         }),
       });
+
+      if (!res.ok) {
+        throw new Error('Failed to send high five');
+      }
+
+      setHighFiveSent(true);
 
       // 2. LocalStorage real-time sync for instant cross-tab notification
       const hfPayload = {
@@ -142,13 +158,13 @@ export default function ParentDashboard({
       };
       localStorage.setItem(`aura_high_five_${parentUser.student_username.toLowerCase()}`, JSON.stringify(hfPayload));
       localStorage.setItem('aura_latest_high_five', JSON.stringify(hfPayload));
+
+      setTimeout(() => {
+        setHighFiveSent(false);
+      }, 4000);
     } catch (e) {
       console.error('Failed to dispatch high five to backend:', e);
     }
-
-    setTimeout(() => {
-      setHighFiveSent(false);
-    }, 4000);
   };
 
   const getSubjectIcon = (iconName: string) => {
@@ -390,14 +406,26 @@ export default function ParentDashboard({
               </div>
 
               {/* Pulse Active Badge */}
-              <div className="px-4 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-2.5 shadow-xs">
+              <div className={`px-4 py-2.5 rounded-2xl flex items-center gap-2.5 shadow-xs ${
+                live_presence.is_online
+                  ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50'
+              }`}>
                 <div className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  {live_presence.is_online && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${
+                    live_presence.is_online ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-500'
+                  }`}></span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{live_presence.last_active_text}</p>
-                  <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/80">{live_presence.last_activity_title}</p>
+                  <p className={`text-xs font-semibold ${
+                    live_presence.is_online ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'
+                  }`}>{live_presence.last_active_text}</p>
+                  <p className={`text-[11px] ${
+                    live_presence.is_online ? 'text-emerald-600/90 dark:text-emerald-400/80' : 'text-slate-500 dark:text-slate-400'
+                  }`}>{live_presence.last_activity_title}</p>
                 </div>
               </div>
             </div>

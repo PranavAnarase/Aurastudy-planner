@@ -103,12 +103,48 @@ export default function TimeSlotBlock({ slot, onStartDynamicTest }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      setOpen(v => !v);
+      if (interactive) {
+        if (leaveTimer.current) {
+          clearTimeout(leaveTimer.current);
+          leaveTimer.current = null;
+        }
+        setOpen(true);
+      }
     }
   };
 
-  // Mobile tap: toggle (no hover)
-  const handleClick = () => { if (interactive) setOpen(v => !v); };
+  // Click opens panel without toggling closed
+  const handleClick = () => {
+    if (interactive) {
+      if (leaveTimer.current) {
+        clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+      }
+      setOpen(true);
+    }
+  };
+
+  function handleCardBlur(e: React.FocusEvent) {
+    if (!interactive) return;
+    const related = e.relatedTarget as Node | null;
+    if (related && (cardRef.current?.contains(related) || panelRef.current?.contains(related))) {
+      if (leaveTimer.current) {
+        clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+      }
+      return;
+    }
+    handlePointerLeave();
+  }
+
+  function handlePanelBlur(e: React.FocusEvent) {
+    if (!interactive) return;
+    const related = e.relatedTarget as Node | null;
+    if (related && (cardRef.current?.contains(related) || panelRef.current?.contains(related))) {
+      return;
+    }
+    handlePointerLeave();
+  }
 
   return (
     <div className="relative">
@@ -124,7 +160,7 @@ export default function TimeSlotBlock({ slot, onStartDynamicTest }: Props) {
         onMouseEnter={handlePointerEnter}
         onMouseLeave={handlePointerLeave}
         onFocus={handlePointerEnter}
-        onBlur={handlePointerLeave}
+        onBlur={handleCardBlur}
         onKeyDown={interactive ? handleKeyDown : undefined}
         className={[
           'relative flex flex-col justify-between rounded-2xl border overflow-hidden',
@@ -170,6 +206,8 @@ export default function TimeSlotBlock({ slot, onStartDynamicTest }: Props) {
           onClose={() => setOpen(false)}
           onMouseEnter={handlePointerEnter}
           onMouseLeave={handlePointerLeave}
+          onFocus={handlePointerEnter}
+          onBlur={handlePanelBlur}
           onStartDynamicTest={onStartDynamicTest}
         />
       )}
@@ -366,11 +404,13 @@ interface PanelProps {
   onClose: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onFocus?: () => void;
+  onBlur?: (e: React.FocusEvent) => void;
   onStartDynamicTest?: (slot: DynamicTestSlot) => void;
 }
 
 const TooltipPanel = React.forwardRef<HTMLDivElement, PanelProps>(
-  ({ slot, onClose, onMouseEnter, onMouseLeave, onStartDynamicTest }, ref) => {
+  ({ slot, onClose, onMouseEnter, onMouseLeave, onFocus, onBlur, onStartDynamicTest }, ref) => {
     return (
       <>
         {/* Mobile backdrop */}
@@ -387,6 +427,8 @@ const TooltipPanel = React.forwardRef<HTMLDivElement, PanelProps>(
           aria-label="Time slot details"
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
+          onFocus={onFocus}
+          onBlur={onBlur}
           className={[
             'fixed bottom-0 left-0 right-0 z-50',
             'sm:fixed sm:bottom-auto sm:left-auto sm:right-auto',

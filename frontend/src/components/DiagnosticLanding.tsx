@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Clock, BookOpen, Brain, ArrowRight, CheckCircle, SkipForward, ArrowLeft, Shield, Check } from 'lucide-react';
 
 interface DiagnosticLandingProps {
@@ -23,6 +23,17 @@ export default function DiagnosticLanding({ attemptedSubjects = [], onStart, onB
     const unattempted = ALL_ACADEMIC_SUBJECTS.filter(s => !attemptedSubjects.includes(s));
     return unattempted.length > 0 ? unattempted : ALL_ACADEMIC_SUBJECTS;
   });
+
+  useEffect(() => {
+    setSelected(prev => {
+      const filtered = prev.filter(s => !attemptedSubjects.includes(s));
+      if (filtered.length === 0) {
+        const unattempted = ALL_ACADEMIC_SUBJECTS.filter(s => !attemptedSubjects.includes(s));
+        return unattempted.length > 0 ? unattempted : ALL_ACADEMIC_SUBJECTS;
+      }
+      return filtered;
+    });
+  }, [attemptedSubjects]);
 
   const toggleSubject = (subj: string) => {
     if (attemptedSubjects.includes(subj)) return; // Prevent toggling already completed subjects
@@ -198,8 +209,13 @@ export default function DiagnosticLanding({ attemptedSubjects = [], onStart, onB
       <div className="text-center">
         <button
           id="start-diagnostic-btn"
-          onClick={() => onStart(selected)}
-          disabled={selected.length === 0}
+          onClick={() => {
+            const pruned = selected.filter(s => !attemptedSubjects.includes(s));
+            if (pruned.length > 0) {
+              onStart(pruned);
+            }
+          }}
+          disabled={selected.filter(s => !attemptedSubjects.includes(s)).length === 0}
           className="group relative inline-flex items-center gap-3 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold rounded-2xl px-10 py-4 text-lg shadow-2xl shadow-violet-950/40 transition-all duration-200 hover:scale-[1.03] hover:shadow-violet-900/50 disabled:opacity-50 disabled:pointer-events-none"
         >
           <Play size={20} className="transition-transform group-hover:scale-110" />

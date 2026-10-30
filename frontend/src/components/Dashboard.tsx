@@ -17,6 +17,8 @@ import {
 } from '../engine/timeGapScheduler';
 import {
   rankTopicsByUrgency,
+  assembleTestPayload,
+  buildCandidateTopics,
 } from '../engine/adaptiveTopicSelector';
 import {
   getCompletedDynamicSlots,
@@ -278,44 +280,27 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
         label: t.chapter_name,
       }));
 
-    const completedTaskChapterIds = new Set(
-      dailyTasks.filter((t) => t.status === 'COMPLETED').map((t) => t.chapter_id)
-    );
-
-    const candidates: CandidateTopic[] = [];
-    for (const subj of availableSubjects) {
-      for (const ch of subj.chapters || []) {
-        if (ch.is_locked === true) continue;
-        const isStudiedYesterday = completedTaskChapterIds.has(ch.chapter_id);
-        const isCompletedOrInProgress = (ch.mastery_score || 0) > 0 || isStudiedYesterday || Boolean(ch.is_due);
-
-        candidates.push({
-          chapterId: ch.chapter_id,
-          chapterName: ch.chapter_name,
-          subjectName: subj.subject_name,
-          masteryScore: ch.mastery_score ?? 0,
-          lastReviewedDate: ch.next_review_date ?? undefined,
-          daysSinceReview: ch.interval_days ?? 1,
-          stabilityFactor: 2.0,
-          wasStudiedYesterday: isStudiedYesterday,
-          isUnlocked: ch.is_unlocked !== false,
-          isCompletedOrInProgress,
-        });
-      }
+    const candidates = buildCandidateTopics(availableSubjects, dailyTasks);
+    const rankedTopics = rankTopicsByUrgency(candidates);
+    if (rankedTopics.length === 0) {
+      return [];
     }
 
-    const rankedTopics = rankTopicsByUrgency(candidates);
     const rawSlots = generateAdaptiveTestSlots(commitmentIntervals, plannedStudyIntervals);
 
     return rawSlots
       .filter((dyn) => !completedDynamicSlotIds.includes(dyn.id))
       .map((dyn) => {
-        const targetTopics = rankedTopics.slice(0, 3).map((t) => ({
-          chapterId: t.chapterId,
-          chapterName: t.chapterName,
-          subjectName: t.subjectName,
-          masteryScore: t.masteryScore,
-        }));
+        const payload = assembleTestPayload(dyn, candidates);
+        const targetTopics = payload.topics.map((t) => {
+          const match = rankedTopics.find((r) => r.chapterId === t.chapterId);
+          return {
+            chapterId: t.chapterId,
+            chapterName: match?.chapterName || t.chapterName,
+            subjectName: match?.subjectName || '',
+            masteryScore: match?.masteryScore ?? 0,
+          };
+        });
 
         return {
           id: dyn.id,

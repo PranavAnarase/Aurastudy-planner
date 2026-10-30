@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AURASTUDY_V1_PREFIX } from '../config/api';
 import { 
   TrendingUp, Clock, CheckCircle2, AlertTriangle, Sparkles, 
@@ -168,20 +168,46 @@ export default function StudentAnalyticsDashboard({ studentId }: StudentAnalytic
     };
   }, [studentId]);
 
+  const reviewRequestIdRef = useRef(0);
+
+  const handleCloseReviewModal = useCallback(() => {
+    reviewRequestIdRef.current++;
+    setSelectedReviewId(null);
+    setReviewData(null);
+  }, []);
+
+  useEffect(() => {
+    if (selectedReviewId === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseReviewModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedReviewId, handleCloseReviewModal]);
+
   // Fetch full review sheet when a historical attempt is clicked
   const handleOpenReviewSheet = async (assessmentId: number) => {
+    const currentReq = ++reviewRequestIdRef.current;
     setSelectedReviewId(assessmentId);
     setLoadingReview(true);
     try {
       const res = await fetch(`${AURASTUDY_V1_PREFIX}/assessment/history/review-sheet?assessment_id=${encodeURIComponent(String(assessmentId))}`);
       if (!res.ok) throw new Error('Failed to load historical review sheet.');
       const sheet = await res.json();
-      setReviewData(sheet);
+      if (currentReq === reviewRequestIdRef.current) {
+        setReviewData(sheet);
+      }
     } catch (err: any) {
-      alert(err.message || 'Could not load review sheet.');
-      setSelectedReviewId(null);
+      if (currentReq === reviewRequestIdRef.current) {
+        alert(err.message || 'Could not load review sheet.');
+        setSelectedReviewId(null);
+      }
     } finally {
-      setLoadingReview(false);
+      if (currentReq === reviewRequestIdRef.current) {
+        setLoadingReview(false);
+      }
     }
   };
 
@@ -820,7 +846,12 @@ export default function StudentAnalyticsDashboard({ studentId }: StudentAnalytic
       {/* HISTORICAL REVIEW SHEET MODAL (Light & Dark Friendly) */}
       {/* ========================================================================= */}
       {selectedReviewId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-fadeIn">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-sheet-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-fadeIn"
+        >
           <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-indigo-500/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             
             {/* Modal Header */}
@@ -831,16 +862,14 @@ export default function StudentAnalyticsDashboard({ studentId }: StudentAnalytic
                   <span className="text-slate-400 dark:text-slate-500">•</span>
                   <span className="text-xs text-slate-500 dark:text-slate-300 font-mono font-bold">Attempt #{reviewData?.attemptNumber || 1}</span>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                <h3 id="review-sheet-modal-title" className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
                   {reviewData?.subjectName}: {reviewData?.chapterTitle}
                 </h3>
               </div>
 
               <button
-                onClick={() => {
-                  setSelectedReviewId(null);
-                  setReviewData(null);
-                }}
+                onClick={handleCloseReviewModal}
+                aria-label="Close review modal"
                 className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -1059,10 +1088,7 @@ export default function StudentAnalyticsDashboard({ studentId }: StudentAnalytic
             {/* Modal Footer */}
             <div className="px-6 py-3.5 border-t border-slate-100 dark:border-indigo-500/20 bg-slate-50 dark:bg-slate-950 flex justify-end">
               <button
-                onClick={() => {
-                  setSelectedReviewId(null);
-                  setReviewData(null);
-                }}
+                onClick={handleCloseReviewModal}
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white transition-colors"
               >
                 Close Review Sheet
