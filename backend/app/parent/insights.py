@@ -413,55 +413,50 @@ def generate_subject_home_tip(
     return (action, "Practice", why)
 
 
-def get_subject_theme_and_icon(subject_name: str) -> Tuple[str, str, str]:
-    """Returns (icon_name, color_theme, default_home_tip)"""
+def get_subject_category_and_tip(subject_name: str) -> Tuple[str, str]:
+    """
+    Returns canonical domain category code and default home tip without frontend UI specifics.
+    Category codes: MATHEMATICS | NATURAL_SCIENCES | LANGUAGES | HUMANITIES | GENERAL
+    """
     name = (subject_name or "").lower()
     if "math" in name or "गणित" in name:
         return (
-            "Calculator",
-            "indigo",
+            "MATHEMATICS",
             "Keep supporting uninterrupted study blocks and encourage step-by-step scratchpad work."
         )
-    elif "hindi" in name or "हिंदी" in name:
+    elif "hindi" in name or "हिंदी" in name or "मराठी" in name or "marathi" in name or "english" in name:
         return (
-            "BookOpen",
-            "rose",
-            "Practice reading Hindi chapters together and discussing new word meanings."
-        )
-    elif "मराठी" in name or "marathi" in name:
-        return (
-            "BookOpen",
-            "purple",
-            "Encourage conversational practice in Marathi and reading short passages aloud."
-        )
-    elif "english" in name:
-        return (
-            "BookOpen",
-            "blue",
-            "Review new vocabulary words together during casual family chats over tea."
+            "LANGUAGES",
+            "Practice reading chapters together and discussing new word meanings."
         )
     elif "science" in name or "विज्ञान" in name or "physics" in name or "chemistry" in name or "biology" in name or "evs" in name:
         return (
-            "FlaskConical",
-            "emerald",
+            "NATURAL_SCIENCES",
             "Ask your child to demonstrate or describe real-world applications of scientific laws."
         )
-    elif "geography" in name or "भूगोल" in name:
+    elif "geography" in name or "भूगोल" in name or "history" in name or "civics" in name or "social" in name or "इतिहास" in name:
         return (
-            "Globe",
-            "amber",
-            "Explore maps and climate patterns together to make geography visual and relatable."
-        )
-    elif "history" in name or "civics" in name or "social" in name or "इतिहास" in name:
-        return (
-            "Globe",
-            "amber",
-            "Discuss historical events as storytelling narratives rather than isolated dates."
+            "HUMANITIES",
+            "Explore maps and historical events together as storytelling narratives rather than isolated dates."
         )
     return (
-        "GraduationCap",
-        "purple",
+        "GENERAL",
         "Celebrate small milestones and offer words of encouragement after study blocks."
     )
+
+
+def get_subject_theme_and_icon(subject_name: str) -> Tuple[str, str, str]:
+    """Deprecated legacy helper maintained for transition. Returns (icon_name, color_theme, default_home_tip)"""
+    cat, tip = get_subject_category_and_tip(subject_name)
+    # Temporary fallback mappings for reference FE prototype
+    icon_map = {
+        "MATHEMATICS": ("Calculator", "indigo"),
+        "LANGUAGES": ("BookOpen", "blue"),
+        "NATURAL_SCIENCES": ("FlaskConical", "emerald"),
+        "HUMANITIES": ("Globe", "amber"),
+        "GENERAL": ("GraduationCap", "purple"),
+    }
+    icon, color = icon_map.get(cat, ("GraduationCap", "purple"))
+    return (icon, color, tip)
 
 

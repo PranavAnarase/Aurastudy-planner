@@ -6,10 +6,12 @@ app = FastAPI(
     description="Adaptive daily and weekly academic study scheduler prototype."
 )
 
+from app.config import settings
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=settings.cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

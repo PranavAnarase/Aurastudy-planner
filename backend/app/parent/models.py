@@ -88,8 +88,9 @@ class SubjectMasteryCard(BaseModel):
     home_support_suggestion: str  # Recommended Parent Action
     action_type: Optional[str] = "Continue"  # 'Continue' | 'Practice' | 'Revise' | 'Assess' | 'Prioritize'
     action_reason: Optional[str] = ""  # The 'Why' explanation
-    icon_name: str
-    color_theme: str
+    subject_category: str = "GENERAL"  # Canonical domain category
+    icon_name: Optional[str] = None  # Deprecated UI field
+    color_theme: Optional[str] = None  # Deprecated UI field
 
 
 class DailyAgendaBlock(BaseModel):
@@ -128,17 +129,3 @@ class ParentDashboardResponse(BaseModel):
     today_journey: List[DailyAgendaBlock]
     all_commitments: List[StudentCommitmentItem] = []
 
-
-class SendHighFiveRequest(BaseModel):
-    student_username: str
-    sender_name: str
-    message: Optional[str] = "Keep up the fantastic momentum! Super proud of your discipline tonight."
-
-
-class HighFiveItem(BaseModel):
-    id: str
-    student_username: str
-    sender_name: str
-    message: str
-    created_at: str
-    acknowledged: bool = False

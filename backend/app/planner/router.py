@@ -54,7 +54,7 @@ def format_time_slot(start_time_str: str, duration_minutes: int):
             dt = datetime.strptime("09:00", "%H:%M")
             
     end_dt = dt + timedelta(minutes=duration_minutes)
-    return dt.strftime("%I:%M %p"), end_dt.strftime("%I:%M %p"), end_dt.strftime("%H:%M")
+    return dt.strftime("%H:%M"), end_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
 
 
 def get_subject_section(subj_name: str) -> str:
@@ -101,9 +101,9 @@ def assign_time_slots(tasks: list, student) -> list:
         cursor = datetime.strptime("09:00", "%H:%M")
 
     for i, task in enumerate(tasks):
-        task.start_time = cursor.strftime("%I:%M %p")
+        task.start_time = cursor.strftime("%H:%M")
         end_cursor = cursor + timedelta(minutes=task.allocated_minutes)
-        task.end_time = end_cursor.strftime("%I:%M %p")
+        task.end_time = end_cursor.strftime("%H:%M")
 
         # Add 5-minute break before next task (skip after last task)
         if i < len(tasks) - 1:

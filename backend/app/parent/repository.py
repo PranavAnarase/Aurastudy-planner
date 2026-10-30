@@ -33,7 +33,7 @@ from app.parent.models import (
     DailyAgendaBlock,
     StudentCommitmentItem,
 )
-from app.parent.insights import generate_parent_insights, get_subject_theme_and_icon, generate_subject_home_tip
+from app.parent.insights import generate_parent_insights, get_subject_theme_and_icon, get_subject_category_and_tip, generate_subject_home_tip
 
 
 def hash_password(password: str) -> str:
@@ -424,6 +424,7 @@ class ParentRepository:
             prog_pct = round((done_chaps / max(1, total_chaps)) * 100.0, 1)
 
             # 4. Subject mastery / Quiz average calculation
+            category_code, _ = get_subject_category_and_tip(subj.subject_name)
             icon_name, color_theme, _ = get_subject_theme_and_icon(subj.subject_name)
 
             if subj_scores:
@@ -461,6 +462,7 @@ class ParentRepository:
                 SubjectMasteryCard(
                     subject_id=subj.subject_id,
                     subject_name=subj.subject_name,
+                    subject_category=category_code,
                     chapters_completed=done_chaps,
                     total_chapters=total_chaps,
                     progress_percentage=prog_pct,

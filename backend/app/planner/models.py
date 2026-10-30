@@ -96,7 +96,8 @@ class CommitmentBlockModel(BaseModel):
     specific_date: Optional[str] = None
     start_time: str
     end_time: str
-    color: Optional[str] = None
+    block_category: str = Field(default="GENERAL", description="Domain category: SCHOOL | TUITION | SPORTS | TRAVEL | SLEEP | GENERAL")
+    color: Optional[str] = None  # Deprecated UI field
 
 
 class UpdateCommitmentsRequest(BaseModel):

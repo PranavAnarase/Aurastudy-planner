@@ -9,12 +9,39 @@ from datetime import datetime, date
 from decimal import Decimal
 import json
 
+import urllib.parse
+from pathlib import Path
+
+# Load from .env if present
+env_path = Path(__file__).resolve().parent / ".env"
+db_url = os.getenv("DATABASE_URL")
+if not db_url and env_path.exists():
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("DATABASE_URL="):
+                db_url = line.strip().split("DATABASE_URL=", 1)[1].strip("\"'")
+
+if db_url and "://" in db_url:
+    clean_url = db_url.replace("mysql+aiomysql://", "mysql://").replace("mysql+asyncmy://", "mysql://")
+    parsed = urllib.parse.urlparse(clean_url)
+    default_host = parsed.hostname or '72.62.226.156'
+    default_port = parsed.port or 3306
+    default_user = urllib.parse.unquote(parsed.username) if parsed.username else 'cil-db-intern'
+    default_pass = urllib.parse.unquote(parsed.password) if parsed.password else 'studyplanner@2026'
+    default_db = parsed.path.lstrip('/') or 'new_study_planner'
+else:
+    default_host = '72.62.226.156'
+    default_port = 3306
+    default_user = 'cil-db-intern'
+    default_pass = 'studyplanner@2026'
+    default_db = 'new_study_planner'
+
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': int(os.getenv('DB_PORT', 3306)),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'database': os.getenv('DB_NAME', 'new_study_planner'),
+    'host': os.getenv('DB_HOST', default_host),
+    'port': int(os.getenv('DB_PORT', default_port)),
+    'user': os.getenv('DB_USER', default_user),
+    'password': os.getenv('DB_PASSWORD', default_pass),
+    'database': os.getenv('DB_NAME', default_db),
 }
 
 def run_tests():

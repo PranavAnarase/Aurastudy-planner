@@ -83,27 +83,6 @@ async def run_tests():
             print(f"   * Guidance Items: {len(data.actionable_guidance)}")
             print(f"   * Today Journey Blocks: {len(data.today_journey)}")
 
-            # Test High Five API
-            from app.parent.router import send_high_five, get_high_fives, acknowledge_high_five
-            from app.parent.models import SendHighFiveRequest
-
-            hf = await send_high_five(
-                SendHighFiveRequest(
-                    student_username=student.username,
-                    sender_name=parent.full_name,
-                    message="Proud of your hard work and study consistency today! Keep shining! 👏"
-                ),
-                db
-            )
-            print(f"[OK] Sent High Five (id={hf.id}) from {hf.sender_name} to {hf.student_username}")
-
-            pending_hf = await get_high_fives(student_username=student.username, db=db)
-            assert len(pending_hf) > 0, "Should have pending high fives"
-            print(f"[OK] Verified Student Dashboard received pending High Five: '{pending_hf[0].message}'")
-
-            ack = await acknowledge_high_five(hf.id)
-            print(f"[OK] Acknowledged High Five status: {ack['status']}")
-
     print("\nALL PARENT PORTAL BACKEND TESTS PASSED SUCCESSFULLY!")
 
 

@@ -78,13 +78,16 @@ async def get_student_analytics_dashboard(session: AsyncSession, student_id: int
     timeline_points = []
     for r in timeline_rows:
         t_date = r.test_date
-        date_short = t_date.strftime("%b %d") if hasattr(t_date, "strftime") else str(t_date)
-        date_full = t_date.strftime("%b %d, %Y • %I:%M %p") if hasattr(t_date, "strftime") else str(t_date)
+        iso_str = t_date.isoformat() if hasattr(t_date, "isoformat") else str(t_date)
+        date_short = t_date.strftime("%Y-%m-%d") if hasattr(t_date, "strftime") else str(t_date)
+        date_full = t_date.strftime("%Y-%m-%d %H:%M") if hasattr(t_date, "strftime") else str(t_date)
         score_val = float(r.score_percentage) if r.score_percentage is not None else 0.0
         tier_val = "MASTERED" if score_val >= 90 else ("DEVELOPING" if score_val >= 50 else "CRITICAL")
         
         timeline_points.append({
             "assessmentId": r.assessment_id,
+            "assessment_id": r.assessment_id,
+            "test_date": iso_str,
             "date": date_short,
             "fullDate": date_full,
             "score": round(score_val, 1),
@@ -286,15 +289,20 @@ async def get_student_analytics_dashboard(session: AsyncSession, student_id: int
     assessment_history = []
     for h in history_rows:
         t_date = h.test_date
-        date_str = t_date.strftime("%b %d, %Y • %I:%M %p") if hasattr(t_date, "strftime") else str(t_date)
+        iso_str = t_date.isoformat() if hasattr(t_date, "isoformat") else str(t_date)
+        date_str = t_date.strftime("%Y-%m-%d %H:%M") if hasattr(t_date, "strftime") else str(t_date)
         acc = float(h.accuracy) if h.accuracy is not None else 0.0
         tier = "Mastered" if acc >= 90 else ("Developing" if acc >= 50 else "Critical")
         assessment_history.append({
             "assessmentId": h.assessment_id,
+            "assessment_id": h.assessment_id,
+            "test_date": iso_str,
             "dateFormatted": date_str,
             "subjectName": h.subject_name,
             "chapterTitle": h.chapter_name,
             "attemptNumber": h.attempt_number,
+            "obtained_marks": float(h.obtained_marks or 0),
+            "total_marks": float(h.total_marks or 0),
             "scoreFormatted": f"{float(h.obtained_marks or 0):.0f} / {float(h.total_marks or 0):.0f}",
             "accuracy": round(acc, 1),
             "tierBadge": tier,
@@ -429,19 +437,30 @@ async def get_historical_assessment_review(session: AsyncSession, assessment_id:
         })
 
     t_date = row_a.ass_end_time or row_a.ass_start_time
-    date_str = t_date.strftime("%b %d, %Y • %I:%M %p") if hasattr(t_date, "strftime") else str(t_date) if t_date else ""
+    iso_str = t_date.isoformat() if hasattr(t_date, "isoformat") else (str(t_date) if t_date else "")
+    date_str = t_date.strftime("%Y-%m-%d %H:%M") if hasattr(t_date, "strftime") else (str(t_date) if t_date else "")
 
     return {
         "assessmentId": assessment.assessment_id,
+        "assessment_id": assessment.assessment_id,
+        "test_date": iso_str,
         "studentId": assessment.student_id,
+        "student_id": assessment.student_id,
         "chapterId": row_a.chapter_id,
+        "chapter_id": row_a.chapter_id,
         "chapterTitle": chapter_name,
+        "chapter_title": chapter_name,
         "subjectName": subject_name,
+        "subject_name": subject_name,
         "attemptNumber": assessment.attempt_number,
+        "attempt_number": assessment.attempt_number,
         "score": float(assessment.obtained_marks or 0),
+        "obtained_marks": float(assessment.obtained_marks or 0),
         "totalMarks": float(assessment.total_marks or len(question_items)),
+        "total_marks": float(assessment.total_marks or len(question_items)),
         "accuracy": float(assessment.accuracy or 0),
         "dateFormatted": date_str,
         "aiOverallSummary": None,
+        "ai_overall_summary": None,
         "questions": question_items
     }
