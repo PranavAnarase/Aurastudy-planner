@@ -205,57 +205,7 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
     });
   }, [studentId, todayStr]);
 
-  // High-Five state and real-time sync with Parent Portal
-  const [highFives, setHighFives] = useState<Array<{ id: string; sender_name: string; message: string; timestamp?: number }>>([]);
-  const [highFiveCelebration, setHighFiveCelebration] = useState(false);
 
-  useEffect(() => {
-    if (!studentId) return;
-
-    const checkHighFives = async () => {
-      try {
-        // 1. Fetch from API
-        const res = await fetch(`${AURASTUDY_V1_PREFIX}/parent/high-fives?user_id=${encodeURIComponent(String(studentId))}`);
-        if (res.ok) {
-          const items = await res.json();
-          if (items && items.length > 0) {
-            setHighFives(items);
-            return;
-          }
-        }
-      } catch (e) {}
-
-      // 2. Check LocalStorage for instant cross-tab sync
-      const latest = localStorage.getItem('aura_latest_high_five');
-      if (latest) {
-        try {
-          const parsed = JSON.parse(latest);
-          const ackKey = `aura_ack_hf_${parsed.id || parsed.timestamp}`;
-          if (!localStorage.getItem(ackKey)) {
-            setHighFives([parsed]);
-          }
-        } catch (e) {}
-      }
-    };
-
-    checkHighFives();
-    const interval = setInterval(checkHighFives, 8000);
-    window.addEventListener('storage', checkHighFives);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', checkHighFives);
-    };
-  }, [studentId]);
-
-  const handleAckHighFive = async (hfId: string) => {
-    setHighFiveCelebration(true);
-    try {
-      await fetch(`${AURASTUDY_V1_PREFIX}/parent/ack-high-five/${hfId}`, { method: 'POST' });
-    } catch (e) {}
-    localStorage.setItem(`aura_ack_hf_${hfId}`, 'true');
-    setHighFives((prev) => prev.filter((h) => h.id !== hfId));
-    setTimeout(() => setHighFiveCelebration(false), 4000);
-  };
 
   // Filter commitments that apply to today
   const todayCommitments = useMemo(() => {
@@ -628,52 +578,7 @@ export default function Dashboard({ studentId, sessionId, profileVersion, studen
             <div className={hasSidebar ? "grid grid-cols-1 lg:grid-cols-3 gap-8 items-start" : "space-y-8 max-w-5xl mx-auto w-full"}>
               {/* Main Workspace Column */}
               <div className={hasSidebar ? "lg:col-span-2 space-y-8" : "space-y-8 w-full"}>
-        {/* PARENT HIGH-FIVE BANNER */}
-        {highFives.length > 0 && (
-          <div className="p-5 rounded-3xl bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-indigo-500/15 border-2 border-pink-500/40 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg shadow-pink-500/30 flex-shrink-0 animate-bounce">
-                👏
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 font-outfit">
-                    High-Five from {highFives[0].sender_name}!
-                  </h4>
-                  <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-pink-100 dark:bg-pink-900/60 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800">
-                    Parent Love ❤️
-                  </span>
-                </div>
-                <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5 font-medium">
-                  "{highFives[0].message}"
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <button
-                type="button"
-                onClick={() => handleAckHighFive(highFives[0].id)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-pink-600/30 transition hover:scale-105 active:scale-95"
-              >
-                <span>High-Five Back! ✋</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAckHighFive(highFives[0].id)}
-                className="px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-200 dark:border-slate-700 transition"
-              >
-                Thank You ❤️
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* High Five Celebration Toast */}
-        {highFiveCelebration && (
-          <div className="p-4 rounded-2xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xl animate-bounce">
-            <Sparkles size={16} /> High-Five Sent Back to Your Parents! Keep shining on your study plan! 🌟
-          </div>
-        )}
 
         {/* Workspace Sub-Tabs */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 space-x-6 text-sm font-medium overflow-x-auto">

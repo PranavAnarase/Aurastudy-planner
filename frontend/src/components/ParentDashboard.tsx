@@ -21,7 +21,6 @@ import {
   Sun,
   Shield,
   HeartHandshake,
-  ThumbsUp,
   Share2,
   Calendar,
   CalendarDays,
@@ -51,7 +50,6 @@ export default function ParentDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [discussedItems, setDiscussedItems] = useState<Record<string, boolean>>({});
-  const [highFiveSent, setHighFiveSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'subjects' | 'schedule'>('overview');
   const dashboardReqIdRef = useRef(0);
 
@@ -99,7 +97,7 @@ export default function ParentDashboard({
 
     // 2. Cross-tab storage listener: fires when student finishes task/quiz in another tab
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'aura_last_task_update' || e.key?.startsWith('aura_high_five')) {
+      if (e.key === 'aura_last_task_update') {
         fetchDashboardData(true);
       }
     };
@@ -127,44 +125,6 @@ export default function ParentDashboard({
 
   const toggleDiscussed = (id: string) => {
     setDiscussedItems((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handleSendHighFive = async () => {
-    try {
-      // 1. Post to backend
-      const res = await fetch(`${AURASTUDY_V1_PREFIX}/parent/send-high-five`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_username: parentUser.student_username,
-          sender_name: parentUser.full_name,
-          message: 'Proud of your hard work and study consistency today! Keep shining! 👏',
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to send high five');
-      }
-
-      setHighFiveSent(true);
-
-      // 2. LocalStorage real-time sync for instant cross-tab notification
-      const hfPayload = {
-        id: Date.now().toString(),
-        sender_name: parentUser.full_name,
-        student_username: parentUser.student_username,
-        message: 'Proud of your hard work and study consistency today! Keep shining! 👏',
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(`aura_high_five_${parentUser.student_username.toLowerCase()}`, JSON.stringify(hfPayload));
-      localStorage.setItem('aura_latest_high_five', JSON.stringify(hfPayload));
-
-      setTimeout(() => {
-        setHighFiveSent(false);
-      }, 4000);
-    } catch (e) {
-      console.error('Failed to dispatch high five to backend:', e);
-    }
   };
 
   const getSubjectIcon = (iconName: string) => {
@@ -312,20 +272,6 @@ export default function ParentDashboard({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* High-Five Trigger Button */}
-            <button
-              onClick={handleSendHighFive}
-              disabled={highFiveSent}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md ${
-                highFiveSent
-                  ? 'bg-emerald-600 text-white shadow-emerald-500/30 animate-pulse'
-                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/20'
-              }`}
-            >
-              <ThumbsUp className="w-3.5 h-3.5" />
-              {highFiveSent ? '👏 High-Five Sent to Child!' : 'Send High-Five 👏'}
-            </button>
-
             {/* Live Data Refresh Button */}
             <button
               onClick={() => fetchDashboardData(false)}
